@@ -32,3 +32,5 @@ set_global_assignment -name VHDL_FILE "fpga/src/tms6100.vhd"
 set_global_assignment -name VHDL_FILE "fpga/src/tms9900.vhd"
 set_global_assignment -name VHDL_FILE "fpga/src/tms9919.vhd"
 set_global_assignment -name SYSTEMVERILOG_FILE Ti994a.sv
+set_global_assignment -name VERILOG_FILE joydb9md.v
+set_global_assignment -name VERILOG_FILE joydb15.v

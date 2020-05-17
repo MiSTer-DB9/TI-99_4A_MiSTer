@@ -161,7 +161,7 @@ parameter CONF_STR = {
 	"OT,UserIO Players, 1 Player,2 Players;",
 	"-;",
 	"OA,Turbo,Off,On;",
-	"OC,Speech,Off,On;",
+	"OGH,Speech,Off,5220,5200;",
 	"R0,Reset;",
 	"-;",
 	"OB,Swap joysticks,NO,YES;",
@@ -173,10 +173,10 @@ parameter CONF_STR = {
 
 wire reset_osd  = status[0];
 wire turbo      = status[10];
-wire speech     = status[12];
 wire joy_swap   = status[11];
 wire mbx        = status[13];
 wire scratch_1k = status[14];
+wire [1:0] speech_mod = ~status[17:16];
 
 /////////////////  CLOCKS  ////////////////////////
 
@@ -215,6 +215,7 @@ wire        ioctl_wr;
 wire [24:0] ioctl_addr;
 wire  [7:0] ioctl_dout;
 wire        forced_scandoubler;
+wire [21:0] gamma_bus;
 
 // F2 F1 U D L R 
 wire [31:0] joy0 = joydb_1ena ? (OSD_STATUS? 32'b000000 : joydb_1[5:0]) : joy0_USB;
@@ -261,6 +262,7 @@ hps_io #(.STRLEN($size(CONF_STR)>>3)) hps_io
 	.buttons(buttons),
 	.status(status),
 	.forced_scandoubler(forced_scandoubler),
+	.gamma_bus(gamma_bus),
 
 	.ioctl_download(ioctl_download),
 	.ioctl_index(ioctl_index),
@@ -426,7 +428,7 @@ ep994a console
 
 	.audio_total_o(audio),
 	
-	.speech_i(speech),
+	.speech_model(speech_mod),
 	.sr_re_o(),
 	.sr_addr_o(speech_a),
 	.sr_data_i(speech_d),
@@ -450,10 +452,11 @@ always @(posedge CLK_VIDEO) begin
 	if(~hs_o & ~hsync) vs_o <= ~vsync;
 end
 
-video_mixer #(.LINE_LENGTH(290)) video_mixer
+video_mixer #(.LINE_LENGTH(290), .GAMMA(1)) video_mixer
 (
 	.*,
 
+	.clk_vid(CLK_VIDEO),
 	.ce_pix(ce_5m3),
 	.ce_pix_out(CE_PIXEL),
 

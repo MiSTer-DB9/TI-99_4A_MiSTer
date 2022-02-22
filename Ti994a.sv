@@ -176,11 +176,11 @@ module emu
 
 assign ADC_BUS = 'Z;
 wire         CLK_JOY = CLK_50M;         //Assign clock between 40-50Mhz
-wire   [2:0] JOY_FLAG  = {status[30],status[31],status[29]}; //Assign 3 bits of status (31:29) o (63:61)
+wire   [2:0] JOY_FLAG  = ~tipi_en ? {status[30],status[31],status[29]} : 3'b000; //Assign 3 bits of status (31:29) o (63:61)
 wire         JOY_CLK, JOY_LOAD, JOY_SPLIT, JOY_MDSEL;
 wire   [5:0] JOY_MDIN  = JOY_FLAG[2] ? {USER_IN[6],USER_IN[3],USER_IN[5],USER_IN[7],USER_IN[1],USER_IN[2]} : '1;
 wire         JOY_DATA  = JOY_FLAG[1] ? USER_IN[5] : '1;
-assign       USER_OUT  = JOY_FLAG[2] ? {3'b111,JOY_SPLIT,3'b111,JOY_MDSEL} : JOY_FLAG[1] ? {6'b111111,JOY_CLK,JOY_LOAD} : '1;
+//assign       USER_OUT  = JOY_FLAG[2] ? {3'b111,JOY_SPLIT,3'b111,JOY_MDSEL} : JOY_FLAG[1] ? {6'b111111,JOY_CLK,JOY_LOAD} : '1;
 assign       USER_MODE = JOY_FLAG[2:1] ;
 assign       USER_OSD  = joydb_1[10] & joydb_1[6];
 
@@ -1222,9 +1222,28 @@ wire rpi_clk = USER_IN[6];				//SSTX+
 
 wire rpi_din, rpi_reset;
 
-assign USER_OUT[0] = rpi_reset;			//D+
-assign USER_OUT[4] = rpi_din;				//SSRX+
-
+always_comb begin
+USER_OUT    = '1;
+ if (tipi_en) begin
+   USER_OUT[0] = rpi_reset;			//D+
+   USER_OUT[4] = rpi_din;				//SSRX+
+	USER_OUT[1] = 1'b1;
+	USER_OUT[2] = 1'b1;
+	USER_OUT[3] = 1'b1;	
+	USER_OUT[5] = 1'b1;
+	USER_OUT[6] = 1'b1;
+ end else if (JOY_FLAG[1]) begin
+	USER_OUT[0] = JOY_LOAD;
+	USER_OUT[1] = JOY_CLK;
+	USER_OUT[6] = 1'b1;
+	USER_OUT[4] = 1'b1;
+ end else if (JOY_FLAG[2]) begin
+	USER_OUT[0] = JOY_MDSEL;
+	USER_OUT[1] = 1'b1;
+	USER_OUT[6] = 1'b1;
+	USER_OUT[4] = JOY_SPLIT;
+ end
+end
 
 /////////////////////////////////////////////////  Control  /////////////////////////////////////////////////
 // Mouse

@@ -19,10 +19,18 @@ set_global_assignment -name VHDL_FILE rtl/vdp18/vdp18_ctrl.vhd
 set_global_assignment -name VHDL_FILE rtl/vdp18/vdp18_hor_vert.vhd
 set_global_assignment -name VHDL_FILE rtl/vdp18/vdp18_addr_mux.vhd
 set_global_assignment -name VHDL_FILE rtl/vdp18/vdp18_core.vhd
+
+set_global_assignment -name VERILOG_FILE "rtl/tipi/tipi_top.v"
+set_global_assignment -name VERILOG_FILE "rtl/tipi/latch_8bit.v"
+set_global_assignment -name VERILOG_FILE "rtl/tipi/mux2_8bit.v"
+set_global_assignment -name VERILOG_FILE "rtl/tipi/shift_pload_sout.v"
+set_global_assignment -name VERILOG_FILE "rtl/tipi/shift_sin_pout.v"
+
 set_global_assignment -name VERILOG_FILE "rtl/multiplier.v"
+set_global_assignment -name VERILOG_FILE "rtl/mecmouse.v"
 set_global_assignment -name VHDL_FILE rtl/cv_clock.vhd
 set_global_assignment -name VHDL_FILE rtl/cv_por.vhd
-set_global_assignment -name VERILOG_FILE "rtl/fdc1772/fdc1772.v"
+set_global_assignment -name SYSTEMVERILOG_FILE "rtl/fdc1772/fdc1772.sv"
 set_global_assignment -name VERILOG_FILE "rtl/fdc1772/floppy.v"
 set_global_assignment -name VHDL_FILE "fpga/src/ep994a.vhd"
 set_global_assignment -name VHDL_FILE "fpga/src/gromext.vhd"

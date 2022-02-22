@@ -28,7 +28,7 @@ module emu
 	input         RESET,
 
 	//Must be passed to hps_io module
-	inout  [45:0] HPS_BUS,
+	inout  [48:0] HPS_BUS,
 
 	//Base video clock. Usually equals to CLK_SYS.
 	output        CLK_VIDEO,
@@ -54,7 +54,7 @@ module emu
 
 	input  [11:0] HDMI_WIDTH,
 	input  [11:0] HDMI_HEIGHT,
-//	output        HDMI_FREEZE,
+	output        HDMI_FREEZE,
 
 `ifdef MISTER_FB
 	// Use framebuffer in DDRAM (USE_FB=1 in qsf)
@@ -189,6 +189,14 @@ assign {SD_SCK, SD_MOSI, SD_CS} = 'Z;
 assign {DDRAM_CLK, DDRAM_BURSTCNT, DDRAM_ADDR, DDRAM_DIN, DDRAM_BE, DDRAM_RD, DDRAM_WE} = 0;
 //assign {SDRAM_CLK, SDRAM_CKE, SDRAM_A, SDRAM_BA, SDRAM_DQML, SDRAM_DQMH, SDRAM_nCS, SDRAM_nCAS, SDRAM_nWE} = 'z;
 assign VGA_SCALER = 0;
+assign HDMI_FREEZE = 0;
+
+// number of blocks-1, total size ((sd_blk_cnt+1)*(1<<(BLKSZ+7))) must be <= 16384!
+// Not used at the moment so setting everything to 0.
+assign sd_blk_cnt[0] = 6'd0;
+assign sd_blk_cnt[1] = 6'd0;
+assign sd_blk_cnt[2] = 6'd0;
+assign sd_blk_cnt[3] = 6'd0;
 
 
 assign LED_USER  = ioctl_download | drive_led | loading_nv;
@@ -196,6 +204,7 @@ assign LED_DISK  = 0;
 assign LED_POWER = 0;
 assign BUTTONS   = osd_btn;
 assign ps2_kbd_led_status[0] = btn_al;			// Synch Alpha Lock with Caps Lock LED
+assign ps2_kbd_led_status[1] = 0;
 assign ps2_kbd_led_status[2] = drive_led;    // Use the Scroll Lock LED for Floppy Activity
 
 
@@ -207,46 +216,79 @@ assign ps2_kbd_led_status[2] = drive_led;    // Use the Scroll Lock LED for Flop
 // 0         1         2         3          4         5         6
 // 01234567890123456789012345678901 23456789012345678901234567890123
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// XX XXXXXXXXXXXX XXXXX X                                 
+// XX XXXXXXXXXXXXXXXXXXXXXXXXXXXXX                             XX
 
+// IOCTL INDEX
+// 0	- Boot.rom
+// 1	- Full
+// 2	- Cart (C/D)
+// 3	- Grom (G)
+// 4	- 
+// 5	- System Grom
+// 6	- System Rom
+// 7	- Speech Rom
+// 8	- TI-Disk DSR
+// 9	- Tipi DSR
+//
 `include "build_id.v" 
 parameter CONF_STR = {
 	"TI-99_4A;;",
-	"F,BIN,Load Full or C.bin;",
-	"F,BIN,Load D.bin;",
-	"F,BIN,Load G.bin;",
-	"F,BIN,Load Mega Cart;",
-	"S0,DSK,Drive 1;",
-	"S1,DSK,Drive 2;",
+	"F1,M99BIN,Load Full Cart;",
+	"F2,BIN,Load Rom Cart;",
+	"F3,BIN,Load Grom Cart;",
+	"d6S0,DSK,Drive 1;",
+	"d6S1,DSK,Drive 2;",
+	"d6S2,DSK,Drive 3;",
+	"h2OS,TIFDC Disk Speed,Normal,Turbo;",
+	"h3P4,MyArc FDC Dip Switches;",
+	"P4OS,MyArc Disk Speed,Normal,Turbo;",
+	"H4P4OT,Drive 1 Seek Speed,6ms,20/2ms;",
+	"H4P4OU,Drive 2 Seek Speed,6ms,20/2ms;",
+	"H4P4OV,Drive 3 Seek Speed,6ms,20/2ms;",
+	"h4P4OT,Drive 1 Drive Type,5-1/4\",3-1/2\";",
+	"h4P4OU,Drive 2 Drive Type,5-1/4\",3-1/2\";",
+	"h4P4OV,Drive 3 Drive Type,5-1/4\",3-1/2\";",
 	"-;",
-	"OIK,Cart Type,Normal,MBX,Paged7,UberGrom,Paged379,MiniMem;",	//Normal = 0, MBX = 1, Paged7 = 2, UberGrom = 3, Paged378 = 4, MiniMem = 5
-	"-;",
-	"D0P1,Mini Mem;",
-	"P1S2,DAT,NVRAM File;",
-	"P1rS,Load NVRAM;",
-	"P1rT,Save NVRAM;",
+	"OIK,Cart Type,Normal,MBX,Paged7,Paged378,Paged379,MiniMem;",	//Normal = 0, MBX = 1, Paged7 = 2, UberGrom = 3, Paged378 = 4, MiniMem = 5
+	"H0P1,Mini Mem;",
+	"P1S3,DAT,NVRAM File;",
+	"D5P1rS,Load NVRAM;",
+	"D5P1rT,Save NVRAM;",
 
 	"P2,Video Settings;",
 	"P2OD,Video Mode,NTSC, PAL;",
 	"P2O79,Scandoubler Fx,None,HQ2x-320,CRT 25%,CRT 50%,CRT 75%;",
 	"P2O56,Scale,Normal,V-Integer,Narrower HV-Integer,Wider HV-Integer;",
 	"P2O1,Aspect Ratio,Original,Full Screen;",
-	"D1P2o8,Vertical Crop,No,Yes;",
-	"-;",
-	"OM,SAMS Memory,Off,On;",
-	"OE,Scratchpad RAM,256B,1KB;",
+	"D1P2OL,Vertical Crop,No,Yes;",
 	
 	"-;",
 	"OUV,UserIO Joystick,Off,DB9MD,DB15 ;",
 	"OT,UserIO Players, 1 Player,2 Players;",
 	"-;",
-	"OA,Turbo,Off,On;",
-	"OGH,Speech,Off,5220,5200;",
-	"OC,Arrow Keys,Cursor, Joystick;",
-	"OF,Alpha Lock on Power Up, Off, On;",
-	"OB,Swap joysticks,NO,YES;",
+	"P3,Hardware;",
+	"P3OA,Turbo,Off,On;",
+	"P3OE,Scratchpad RAM,256B,1KB;",
+	"P3OGH,Speech,Off,5220,5200;",
+	"P3OF,Alpha Lock on Power Up, Off, On;",
+	"P3OM,SAMS Memory,Disabled,Enabled;",
+	"P3ON,TiPi,Disabled,Enabled;",
+	"P3OOP,TiPi CRU Base,1000,1100,1200,1400;",
+	"P3OQ,PCode,Disabled,Enabled;",
+	"P3-;",
+	"P3FC4,BIN,Select System Grom;",
+	"P3FC5,BIN,Select System Rom ;",
+	"P3FC6,BIN,Select Speech Rom ;",
+	"P3FC7,BIN,Select Disk DSR   ;",
+	"P3FC8,BIN,Select TIPI DSR   ;",		//File is 32k but only 4k is used.  So ignore anyting over x1000
+	"P3FC9,BIN,Select P-Code Rom ;",		//Index 10 since it's the 11th menu item
 	"-;",
+	"OC,Arrow Keys,Cursor, Joystick;",
+	"OB,Swap joysticks,NO,YES;",
+	"o01,Mouse,Disabled,Mechatronics,Joy1,Joy2;",
+//	"-;",
 //	"oA,Pause When OSD is Open,No,Yes;",
+	"RR,Reset & Detach Cart;",
 	"R0,Reset;",
 	"-;",
 	"J,Fire 1,Fire 2,1,2,3,Enter,Back,Redo;",
@@ -263,7 +305,15 @@ wire [1:0] speech_mod = ~status[17:16];
 // Switches are: 63 CPU Wait States, 31 CPU Wait States (if turbo is on we have to use 31), 8 CPU Wait States
 wire [2:0] optSWI= {1'b0, 1'b1 , 1'b0};	//Currently using 31 cpu wait states as required for SDRAM to work right
 wire sams_en    = status[22];
+// Tipi
+wire tipi_en    = status[23];
+// Tipi CRU Base options at the moment are 1000, 1100, 1200 and 1400.  Can be expanded or hard coded for 1000 - 1F00, just set tipi_crubase to 0 thru F
+wire [3:0] tipi_crubase = (status[25:24] == 2'b11) ?  4'b0100 : status[25:24];
 
+//wire myarc_en   = (disk_dsr_hash == 'h6C || disk_dsr_hash == 'h6B);
+wire myarc_en   = (disk_dsr_hash == 'h6C);
+wire myarc80    = (disk_dsr_hash == 'h6B);
+wire [1:0] mecmouse_en = status[33:32];
 
 //Bring up OSD when no system/boot rom is loaded - copied from Megadrive/Genesis core
 reg osd_btn = 0;
@@ -293,7 +343,7 @@ end
 
 /////////////////  CLOCKS  ////////////////////////
 
-wire clk_sys; //, clk_ram;
+wire clk_sys;
 wire pll_locked;
 
 pll pll
@@ -301,7 +351,6 @@ pll pll
 	.refclk(CLK_50M),
 	.rst(0),
 	.outclk_0(clk_sys),
-//	.outclk_1(clk_ram),
 	.locked(pll_locked)
 );
 
@@ -319,13 +368,17 @@ end
 /////////////////  HPS  ///////////////////////////
 
 wire [63:0] status;
-wire [15:0] status_mask = {scandoubler, cart_type !=5};
+wire [63:0] status_o;		//So we can update OCD Settings on the fly
+wire			status_update;	//Trigger the status update
+wire [15:0] status_mask = {fdc_en, ~nv_file_valid, myarc80, (myarc_en || myarc80) && fdc_en, fdc_en && ~myarc_en && ~myarc80, scandoubler, cart_type !=5};
 wire  [1:0] buttons;
 
 wire [31:0] joy0_USB, joy1_USB;
 wire [10:0] ps2_key;
 wire  [2:0] ps2_kbd_led_use = { 1'b1, 1'b0, 1'b1};
 wire  [2:0] ps2_kbd_led_status;
+wire [24:0] ps2_mouse;
+
 
 wire        ioctl_download;
 wire  [7:0] ioctl_index;
@@ -334,6 +387,9 @@ wire [26:0] ioctl_addr;
 wire  [7:0] ioctl_dout;
 wire        forced_scandoubler;
 wire [21:0] gamma_bus;
+
+wire [31:0] sd_lba[4];
+wire	[5:0] sd_blk_cnt[4];
 
 // F2 F1 U D L R 
 wire [31:0] joy0 = joydb_1ena ? (OSD_STATUS? 32'b000000 : joydb_1[5:0]) : joy0_USB;
@@ -370,29 +426,28 @@ joy_db15 joy_db15
   .joystick2 ( JOYDB15_2 )	  
 );
 
-wire [31:0] sd_lba;
 wire  [3:0] sd_rd;
 wire  [3:0] sd_wr;
-//wire  [1:0] sd_ack;
-wire        sd_ack;
+wire  [3:0] sd_ack;
 wire  [8:0] sd_buff_addr;
 wire  [7:0] sd_buff_dout;
-wire  [7:0] sd_buff_din;
+wire  [7:0] sd_buff_din[4];
 wire        sd_buff_wr;	//sd_dout_strobe
 wire  [3:0] img_mounted;
 wire [31:0] img_size;
 wire  [2:0]	cart_type = status[20:18];
+wire [31:0] img_ext;
+wire        fdc_en = ~(tipi_en == 1'b1 && tipi_crubase == 4'b0001) && disk_dsr_hash != 0;
 
-hps_io #(.STRLEN($size(CONF_STR)>>3), .VDNUM(3)) hps_io
+hps_io #(.CONF_STR(CONF_STR), .VDNUM(4), .BLKSZ(1)) hps_io
 (
 	.clk_sys(clk_sys),
 	.HPS_BUS(HPS_BUS),
 
-	.conf_str(CONF_STR),
-
 	.buttons(buttons),
 	.status(status),
-//	.status_menumask(|vcrop),
+	.status_in(status_o),
+	.status_set(status_update),
 	.status_menumask(status_mask),
 	.forced_scandoubler(forced_scandoubler),
 	.gamma_bus(gamma_bus),
@@ -405,6 +460,7 @@ hps_io #(.STRLEN($size(CONF_STR)>>3), .VDNUM(3)) hps_io
 	.sd_buff_dout(sd_buff_dout),
 	.sd_buff_din(sd_buff_din),
 	.sd_buff_wr(sd_buff_wr),
+   .sd_blk_cnt(sd_blk_cnt), 		// number of blocks-1, total size ((sd_blk_cnt+1)*(1<<(BLKSZ+7))) must be <= 16384!
 
 	.img_mounted(img_mounted),
 	.img_size(img_size),
@@ -414,11 +470,13 @@ hps_io #(.STRLEN($size(CONF_STR)>>3), .VDNUM(3)) hps_io
 	.ioctl_wr(ioctl_wr),
 	.ioctl_addr(ioctl_addr),
 	.ioctl_dout(ioctl_dout),
-
+	.ioctl_file_ext(img_ext),
+	
 	.joy_raw(OSD_STATUS? (joydb_1[5:0]|joydb_2[5:0]) : 6'b000000 ),
 	.ps2_key(ps2_key),
 	.ps2_kbd_led_use(ps2_kbd_led_use),
 	.ps2_kbd_led_status(ps2_kbd_led_status),
+	.ps2_mouse(ps2_mouse),
 
 	.joystick_0(joy0_USB),
 	.joystick_1(joy1_USB)
@@ -430,7 +488,7 @@ hps_io #(.STRLEN($size(CONF_STR)>>3), .VDNUM(3)) hps_io
 reg [7:0] download_reset_cnt;
 wire download_reset = download_reset_cnt != 0;
 always @(posedge CLK_50M) begin
-	if((ioctl_download && ioctl_index != 9) || reset_osd || buttons[1] || RESET) download_reset_cnt <= 8'd255;
+	if(ioctl_download || reset_osd || buttons[1] || RESET || erasing) download_reset_cnt <= 8'd255;
 	else if(download_reset_cnt != 0) download_reset_cnt <= download_reset_cnt - 8'd1;
 end
 
@@ -441,20 +499,72 @@ always @(posedge CLK_50M) begin
 	else if(ioctl_download) init_reset <= 1'b0;
 end
 
-wire reset = (init_reset || buttons[1] || RESET || reset_osd | ioctl_download);
+wire reset = (init_reset || buttons[1] || RESET || reset_osd | ioctl_download | erasing);
 
+
+///////////////// Erase Cart Storage /////////////////
+reg erasing;
+wire [26:0] erase_addr;
+wire        erase_wr;
+
+always @(posedge clk_sys) begin
+	reg old_clear = 0;
+	old_clear <= status[27];
+	if (~old_clear & status[27]) begin
+		erasing <= 1;
+		erase_addr <= 0;
+	end
+	if(erasing == 1) begin
+		if(sdram_ready && ~erase_wr) begin
+			if(erase_addr >= 27'h0 && erase_addr <= 27'hFDFFE) begin
+				if(erase_addr == 27'h7FFFF) erase_addr <= 27'h86000;			//After clearing Cart Rom Area 0x00000..0x7FFFF, move over to Grom Area
+				else if(erase_addr == 27'h9FFFF) erase_addr <= 27'hFD000;	//After clearing Grom Area, move over to Scratch Pad
+				else erase_addr <= erase_addr + 8'd1;
+				erase_wr <= 1;
+			end
+			else begin
+				erasing <= 0;
+				erase_wr <= 0;
+			end
+		end
+		else erase_wr <= 0;
+	end
+end
+
+
+/////////////////  OSD Status Update //////////////
+always @(posedge clk_sys) begin
+	reg downloading = 0;
+
+	status_update = 0;
+	downloading <= ioctl_download;
+	//IF we loaded a M99 file then update the Cartridge Type
+	if((ioctl_index == 0 || ioctl_index == 1) && valid_m99 == 1 && (downloading && ioctl_download == 0)) begin
+		status_o = status;
+		status_o[20:18] = m99CartType[2:0];
+		status_update = 1;
+	end
+	//If a reset and detach cart signal is detected, reset the Cart Type to 0 "Normal/Standard"
+	if(status[27]) begin
+		status_o = status;
+		status_o[27]= 'b0;		//Don't want to save the reset and detach cart signal and restore it.
+		status_o[20:18] = 'd0;
+		status_update = 1;
+	end
+
+end
 /////////////////  Memory  ////////////////////////
 
 wire [14:0] speech_a;
 wire  [7:0] speech_d;
 wire [14:0] speechrom_a;
 
-assign speechrom_a = ioctl_download ? ioctl_addr[14:0] : speech_a;
+assign speechrom_a = ioctl_download && (ioctl_index == 6 || legacy_speech) ? ioctl_addr[14:0] : speech_a;
 
 spram #(15) speechrom
 (
 	.clock(clk_sys),
-	.wren(ioctl_index == 4 ? 0 : ioctl_wr && |ioctl_addr[26:18]),
+	.wren((ioctl_index == 6 || legacy_speech) ? ioctl_wr : 0),
 	.data(ioctl_dout),
 	.address(speechrom_a),
 	.q(speech_d)
@@ -462,30 +572,171 @@ spram #(15) speechrom
 
 
 // 17x16 bit address = 256K
-wire  [20:0] ram_a;
+wire  [24:0] ram_a;
 wire        ram_we_n, ram_ce_n;
 wire  [15:0] ram_di;
 wire  [15:0] sdram_din;
 wire  [15:0] ram_do;
 wire  [1:0] ram_be_n;
 
-wire  [24:0] download_addr;
-reg   [19:0] cart_size;
+reg   [27:0] download_addr;
+reg	[24:0] download_offset;
+reg   [27:0] cart_size;
 reg   [19:0] cart_8k_banks;
 
-// ioctl_index={1=Full/C.bin=0,2=D.bin=h2000>>1=h1000,3=G.bin=h16000>>1=hB000}
-assign download_addr[0] = ~ioctl_addr[0]; //endian fix
-assign download_addr[24:1] = ioctl_addr[20:1] + ((ioctl_index == 1 || ioctl_index == 0) ? (ioctl_addr[18:16] == 3'b000 ? 21'h0000 : (ioctl_addr[17:16] == 2'b01 ? 21'h38000 : 21'h48000)) : 
-                                                (ioctl_index == 2 ? 21'h1000 : (ioctl_index == 3 ? 21'h43000 : 21'h0000)));
-// Add the following to the IOCTL_ADDRESS:
-// If Index is 0 or 1 (boot.rom/Full/C.bin), First 64k, starts at x0000,   
-// If Index is 2 (D.bin), add x1000 (x2000 right shifted)
-// If Index is 3 (G.bin), add x43000 (x86000 right shifted)
-// Any other index, don't add anything, start at x0000
+reg	legacy_rom = 1'b0;
+reg	legacy_speech = 1'b0;
+reg	valid_m99 = 1'b0;
+reg	[15:0] autoloaded_roms = 16'h0000;
+reg	[23:0] m99Sig =24'd0;
+reg	[7:0]  m99Ver = 'd0;
+reg	[7:0]  m99CartType = 'd0;
+reg	[15:0]  m99RomBlks = 'd0;
+reg	[15:0]  m99Groms = 'd0;
+reg   [7:0] disk_dsr_hash = 8'd0;
 
+//Determine where in ram to store the downloaded data based on IOCTL_INDEX
+always @(posedge clk_sys) begin
 
-wire [24:0] sdram_addr;
+	sdram_we = ioctl_wr;
+	
+	
+	case(ioctl_index)
+		0,1,'h41:											//boot.rom and M99
+			begin
+				sdram_we = 0;
+				legacy_speech = 0;
+				if(ioctl_addr == 0) begin
+					if(ioctl_dout != 8'h4D) legacy_rom = 1;
+					else legacy_rom = 0;
+				end
+				if(legacy_rom) begin
+					if(ioctl_addr >= 28'h0 && ioctl_addr <= 28'hFFFF) begin
+						download_addr = ioctl_addr;
+						sdram_we = ioctl_wr;
+					end
+					else if(ioctl_addr >= 28'h10000 && ioctl_addr <=28'h15FFF && ~autoloaded_roms[0]) begin
+						download_addr = ioctl_addr + 23'h80000;
+						sdram_we = ioctl_wr;
+					end
+					else if(ioctl_addr >= 28'h16000 && ioctl_addr <= 28'h1FFFF) begin
+						download_addr = ioctl_addr - 28'h16000 + 23'h86000;
+						sdram_we = ioctl_wr;
+					end
+					else if(ioctl_addr >= 28'h20000 && ioctl_addr <=28'h29FFF && ~autoloaded_roms[3]) begin
+						download_addr = ioctl_addr - 28'h20000 + 23'hB0000;
+						sdram_we = ioctl_wr;
+					end
+					else if(ioctl_addr >= 28'h2A000 && ioctl_addr <=28'h2FFFF && ~autoloaded_roms[1]) begin
+						download_addr = ioctl_addr - 28'h2A000 + 23'hFE000;
+						sdram_we = ioctl_wr;
+					end
+					else if(ioctl_addr >= 28'h40000 && ioctl_addr <=28'h47FFF && ~autoloaded_roms[2]) begin
+						legacy_speech=1;
+					end
+					
+				end
+				else if(ioctl_addr >= 28'h0 && ioctl_addr <= 28'h63) begin
+				
+					
+					if(ioctl_addr >= 28'h0 && ioctl_addr <= 28'd2) begin
+						if(ioctl_addr == 28'h0) m99Sig[23:16] = ioctl_dout;
+						else if(ioctl_addr == 28'h1) m99Sig[15:8] = ioctl_dout;
+						else if(ioctl_addr == 28'h2) m99Sig[7:0] = ioctl_dout;
+						if(ioctl_addr == 28'd2) valid_m99 = m99Sig == 24'h4D3939 ? 1'b1 : 1'b0;
+					end
+					
+					else if(valid_m99 == 1'b1) begin
+						if(ioctl_addr == 28'h3) m99Ver = ioctl_dout;
+						else if(ioctl_addr == 28'h4) m99CartType = ioctl_dout;
+						else if(ioctl_addr == 28'h5) m99RomBlks[15:8] = ioctl_dout;
+						else if(ioctl_addr == 28'h6) m99RomBlks[7:0] = ioctl_dout;
+						else if(ioctl_addr == 28'h7) m99Groms[15:8] = ioctl_dout;
+						else if(ioctl_addr == 28'h8) m99Groms[7:0] = ioctl_dout;
+						// 7-27	:	RESERVED-Future Expansion
+						// 28-67	:	Title (40 bytes)
+						// 68-87	:	Manufacturer (20 bytes)
+						//	88-97	:	Serial #	(10 bytes)
+						else if(ioctl_addr == 28'h62) valid_m99 = ioctl_dout == 'hFF ? 1'b1 : 1'b0;
+						else if(ioctl_addr == 28'h63) valid_m99 = ioctl_dout == 'hFF ? 1'b1 : 1'b0;
+					end
+				end
+				else if(valid_m99 == 1'b1) begin
+					if(m99RomBlks > 0) begin
+						if(ioctl_addr <= (m99RomBlks * 28'h4000)) begin
+							download_addr = ioctl_addr - 28'h64;
+							if(download_addr >= 28'h80000) begin	//Anything over 512K goes to SDRAM above SAMS RAM (above x1FFFFF). Therefore offset is x180000
+								download_addr = download_addr + 28'h180000;
+							end
+							sdram_we = ioctl_wr;
+						end
+					end
+					if(m99Groms > 0) begin
+						if((ioctl_addr - 28'h64) >= (m99RomBlks * 25'h2000) && (ioctl_addr - 25'h64) <= ((m99Groms * 24'h2000)+(m99RomBlks * 25'h2000))) begin
+							download_addr = ioctl_addr - 28'h64 - (m99RomBlks * 25'h2000) + 25'h86000;
+							sdram_we = ioctl_wr;
+						end
+					end
+				end
+			end
+		2: 										//Rom only Cart
+			begin
+				download_addr = ioctl_addr;
+				if(ioctl_addr >= 28'h80000) begin
+					download_addr = ioctl_addr + 28'h180000;
+				end
+			end
+		3:											//Grom only cart
+			begin
+				download_addr = ioctl_addr + 23'h86000;
+				if(ioctl_addr >= 28'h2A000) sdram_we = 0;		//Stop loading anything over 172k
+			end
+		4:											//System Grom
+			begin
+				autoloaded_roms[0]=1;
+				download_addr = ioctl_addr + 23'h80000;
+				if(ioctl_addr >= 28'h6000) sdram_we = 0;		//Stop loading anything over 24k
+			end
+		5:											//System Rom
+			begin
+				autoloaded_roms[1]=1;
+				download_addr = ioctl_addr + 23'hFE000;
+				if(ioctl_addr >= 28'h2000) sdram_we = 0;		//Stop loading anything over 8k
+			end
+				
+		6:	
+			begin
+				autoloaded_roms[2]=1;
+				sdram_we = 0;												//Speech Rom not going to SDRAM so don't download into SDRAM
+			end
+		7:											//Disk DSR
+			begin
+				autoloaded_roms[3]=1;
+				download_addr = ioctl_addr + 23'hB0000;
+				if(ioctl_addr >= 28'h8000) sdram_we = 0;		//Stop loading anything over 32k.
+			end
+		8:											//Tipi DSR
+			begin
+				autoloaded_roms[4]=1;
+				download_addr = ioctl_addr + 23'hB8000;
+				if(ioctl_addr >= 28'h1000) sdram_we = 0;		//Stop loading anything over 4k.
+			end
+		9:											//PCode DSR/Grom 
+			begin
+				autoloaded_roms[5]=1;
+				download_addr = ioctl_addr + 23'hB9000;
+				if(ioctl_addr >= 28'h13000) sdram_we = 0;		//Stop loading anything over 76k.
+			end
+
+		default:	download_addr = ioctl_addr;
+	endcase
+	download_addr[0] = ~download_addr[0];
+end
+
+wire [25:0] sdram_addr;
 wire  [6:1] rommask_s;
+reg	sdram_we;
+
 
 assign SDRAM_CLK = ~clk_sys;
 sdram sdram
@@ -495,20 +746,32 @@ sdram sdram
 	.init(~pll_locked),
 	.clk(clk_sys),
 
-   .wtbt((ioctl_download || nvram_en) ? 2'b0 : ~ram_be_n),
-   .addr(loading_nv ? nvram_addr : saving_nv? nvram_save_addr : sdram_addr),
+   .wtbt((ioctl_download || nvram_en || erasing) ? 2'b0 : ~ram_be_n),
+   .addr(loading_nv ? nvram_addr : saving_nv? nvram_save_addr : erasing ? erase_addr : sdram_addr),
    .rd(saving_nv? nvram_rd_strobe : ~ram_ce_n),
    .dout(sdram_din),
-   .din(ioctl_download? {ioctl_dout,ioctl_dout} : nvram_en ? {nv_dout, nv_dout} : ram_do),
-   .we(ioctl_download ? (ioctl_index == 4 ? ioctl_wr : (ioctl_wr && !ioctl_addr[24:18])) : nvram_en ? nv_buff_wr & nv_ack : ~ram_we_n),
+   .din(ioctl_download? {ioctl_dout,ioctl_dout} : nvram_en ? {nv_dout, nv_dout} : erasing ? 16'h0000 : ram_do),
+   .we(ioctl_download ? sdram_we : nvram_en ? nv_buff_wr & nv_ack : erasing ? erase_wr : ~ram_we_n),
    .ready(sdram_ready)
 );
 
+//Generate a hash of the Disk DSR to determine which DSR is being used
+always @(posedge clk_sys) begin
+	reg [26:0] last_ioaddr;
+	if(ioctl_download && ioctl_index == 7 && ioctl_addr == 28'h0) disk_dsr_hash = 0;
+	last_ioaddr <= ioctl_addr;
+	if(ioctl_download == 1 && ioctl_index == 7  && last_ioaddr != ioctl_addr ) begin
+		disk_dsr_hash = disk_dsr_hash + ioctl_dout[0];
+	end
+end
+
+
+//Mega Cart - bank count.  IOCTL_INDEX of 2
 always @(posedge clk_sys) begin
 	if(~nvram_en) ram_di <= sdram_din;
-	if(ioctl_download == 1 && ioctl_index == 4) begin
-		cart_size <= ioctl_addr[19:0];
-		cart_8k_banks <= (cart_size >> 13);
+	if(ioctl_download == 1 && ioctl_index == 2) begin
+		cart_size <= ioctl_addr;
+		cart_8k_banks <= cart_size[27:13];
 	end
 end
 
@@ -526,10 +789,10 @@ always @(posedge clk_sys) begin
 		nvram_save_addr <= nv_dout_counter + 24'h1000;
 		nvram_rd_strobe <= 1;
 	end
-	else if(nvram_rd_strobe == 0 && sd_ack) begin
+	else if(nvram_rd_strobe == 0 && sd_ack[3]) begin
 		if(saving_nv && sdram_ready) begin
-			if(nv_dout_counter == nv_buff_addr+(nv_lba*512)) begin
-				nv_din <= sdram_din[7:0];
+			if(nv_dout_counter == nv_buff_addr+(sd_lba[3]*512)) begin
+				sd_buff_din[3] <= sdram_din[7:0];
 				if (nv_dout_counter < 4095 ) begin
 					nv_dout_counter = nv_dout_counter + 1'b1;					//If counter is under 4095, increment by one
 					nvram_save_addr <= nv_dout_counter + 24'h1000;
@@ -540,17 +803,7 @@ always @(posedge clk_sys) begin
 	end
 end
 				
-		
-
-assign rommask_s = ioctl_index != 2 ? 6'b000111 :
-                  (ioctl_addr[24:14] == 11'd0 ? 6'b000001 :
-						(ioctl_addr[24:15] == 10'd0 ? 6'b000011 :
-						(ioctl_addr[24:16] == 9'd0 ? 6'b000111 :
-						(ioctl_addr[24:17] == 8'd0 ? 6'b001111 :
-						(ioctl_addr[24:18] == 7'd0 ? 6'b011111 : 6'b111111
-						)))));
-						
-assign sdram_addr = ioctl_download ? download_addr : { 3'b000 ,ram_a , 1'b0 };
+assign sdram_addr = ioctl_download ? download_addr[25:0] : { ram_a , 1'b0 };
 
 
 wire [13:0] vram_a;
@@ -561,9 +814,9 @@ wire  [7:0] vram_do;
 spram #(14) vram
 (
 	.clock(clk_sys),
-	.address(vram_a),
-	.wren(vram_we),
-	.data(vram_do),
+	.address(erasing? erase_addr[13:0]:vram_a),
+	.wren(erasing? erase_wr: vram_we),
+	.data(erasing? 8'd0 : vram_do),
 	.q(vram_di)
 );
 
@@ -617,17 +870,26 @@ ep994a console
 	.hblank_o(hblank),
 	.vblank_o(vblank),
 
-	.img_mounted(img_mounted[1:0]),
-	.img_wp("00"),							//Currently the floppy images are not write protected
+	.myarcfdc_en(myarc_en || myarc80),
+	.fdc_turbo(status[28]),
+	.myarcSwitches(status[31:29]),
+	.myarc80(myarc80),
+
+	.img_mounted(img_mounted[2:0]),
+	.img_wp("000"),							//Currently the floppy images are not write protected
 	.img_size(img_size),
 
-	.sd_lba(fd_lba),
-	.sd_rd(sd_rd[1:0]),
-	.sd_wr(sd_wr[1:0]),
-	.sd_ack(fd_ack),
+	.sd_lba_fd0(sd_lba[0]),
+	.sd_lba_fd1(sd_lba[1]),
+	.sd_lba_fd2(sd_lba[2]),
+	.sd_rd(sd_rd[2:0]),
+	.sd_wr(sd_wr[2:0]),
+	.sd_ack(fd_ack[2:0]),
 	.sd_buff_addr(fd_buff_addr),
 	.sd_dout(fd_dout),
-	.sd_din(fd_din),
+	.sd_din_fd0(sd_buff_din[0]),
+	.sd_din_fd1(sd_buff_din[1]),
+	.sd_din_fd2(sd_buff_din[2]),
 	.sd_dout_strobe(fd_buff_wr),
 
 	.audio_total_o(audio),
@@ -637,21 +899,90 @@ ep994a console
 	.sr_addr_o(speech_a),
 	.sr_data_i(speech_d),
 	
+//Cassette Tape Data
+	.cassette_bit_i(adc_cassette_bit),
+	.cassette_bit_o(),
+	
+//TiPi Related
+	.tipi_en(tipi_en),
+	.tipi_crubase(tipi_crubase),
+	.rpi_clk(rpi_clk),							// PI-31					D+			White
+	.rpi_cd(rpi_cd),								// PI-40					D-			Brown
+	.rpi_dout(rpi_dout),							// PI-36					RX+		Yellow
+	.rpi_le(rpi_le),								// PI-35					RX-		Green
+	.rpi_rt(rpi_rt),								// PI-33					TX-		Blue
+	.rpi_din(rpi_din),							// PI-38	OUT			TX+		Red
+	.rpi_reset(rpi_reset),						// PI-37 OUT			GND_D		Orange
+														// GND								Purple and Grey
+//PCode
+	.pcode_en(status[26]),
+
 	.scratch_1k_i(scratch_1k),
 	.cart_type_i(cart_type),
 	.optSWI(optSWI),
-	.rommask_i(rommask_s),
+	.rommask_i((cart_type == 0 && m99RomBlks == 2) ? 6'b000001 : 6'b000111),
 	.flashloading_i(download_reset),
 	.turbo_i(turbo),
 	.drive_led(drive_led),
 	.pause_i(pause),
 	.sams_en_i(sams_en),
-	.cart_8k_banks(cart_size != 0 ? cart_8k_banks[7:0] : 8),
+	.cart_8k_banks(valid_m99 ? m99RomBlks - 1 : cart_size != 0 ? cart_8k_banks[11:0] : 8),
+	.tape_audio_en(1),							// Tape Audio hardcoded on for now.  Should make this a toggle switch in OSD when all this stuff works.
 	.is_pal_g(is_pal)
 );
 
 
 wire scandoubler = status[9:7] || forced_scandoubler;
+
+/////////////////////// ADC Module  //////////////////////////////
+
+
+wire [11:0] adc_data;
+wire        adc_sync;
+reg [11:0] adc_value;
+reg adc_sync_d;
+
+integer ii=0;
+reg [11:0] adc_val[0:511];
+reg [21:0] adc_total = 0;
+reg [11:0] adc_avg;
+
+reg adc_cassette_bit;
+
+// interface to ADC via framework
+
+ltc2308 #(1, 44100, 50000000) adc_input		// mono, ADC_RATE = 48000, CLK_RATE = 50000000
+(
+	.reset(reset),
+	.clk(CLK_50M),
+
+	.ADC_BUS(ADC_BUS),
+	.dout(adc_data),
+	.dout_sync(adc_sync)
+);
+
+always @(posedge CLK_50M) begin
+
+	
+	adc_sync_d<=adc_sync;
+	if(adc_sync_d ^ adc_sync) begin
+		adc_value <= adc_data;					// latch in current value, adc_Value
+		
+		adc_val[0] <= adc_value;				
+		adc_total  <= adc_total - adc_val[511] + adc_value;
+
+		for (ii=0; ii<511; ii=ii+1)
+			adc_val[ii+1] <= adc_val[ii];
+			
+		adc_avg <= adc_total[20:9];			// update average value every fetch
+		
+
+		if (adc_value > (adc_avg + 40))
+			adc_cassette_bit <= 1;
+		else adc_cassette_bit <= 0;
+			
+	end
+end
 
 
 ////////////////////////////////////////////////////Video////////////////////////////////////////////////////
@@ -676,14 +1007,13 @@ end
 
 
 wire ar = status[1];
-wire vcrop_en = status[40];
+wire vcrop_en = status[21];
 wire vga_de;
 video_freak video_freak
 (
 	.*,
 	.VGA_DE_IN(vga_de),
 	.ARX((!ar) ? 12'd400 : ar ),
-//	.ARX((!ar) ? (wide ? 12'd340 : 12'd400) : (ar - 1'd1)),
 	.ARY((!ar) ? 12'd300 : 12'd0),
 	.CROP_SIZE(vcrop_en ? vcrop : 10'd0),
 	.CROP_OFF(0),
@@ -741,16 +1071,13 @@ video_mixer #(.LINE_LENGTH(284), .GAMMA(1)) video_mixer
 
 wire pause;
 wire  [7:0] fd_dout;
-wire  [7:0] fd_din;
+wire  [7:0] fd_din[2:0];
 wire  [7:0] nv_dout;
-wire  [7:0] nv_din;
-wire [31:0] fd_lba;
-wire [31:0] nv_lba;
 wire  [8:0] fd_buff_addr;
 wire  [8:0] nv_buff_addr;
 
 
-wire			fd_ack;
+wire	[2:0]	fd_ack;
 wire			nv_ack;
 wire        fd_buff_wr;
 wire			nv_buff_wr;
@@ -758,24 +1085,23 @@ wire			nv_buff_wr;
 wire  sd_data_path;
 
 always @(posedge clk_sys) begin
-	if(sd_rd[0] || sd_rd[1] || sd_wr[0] || sd_wr[1]) sd_data_path <= 0;
-	else if(sd_rd[2] || sd_wr[2]) sd_data_path <= 1;
+	if(sd_rd[0] || sd_rd[1] || sd_rd[2] || sd_wr[0] || sd_wr[1] || sd_wr[2]) sd_data_path <= 0;
+	else if(sd_rd[3] || sd_wr[3]) sd_data_path <= 1;
 	
 	if(sd_data_path) begin
 		nv_dout <= sd_buff_dout;
-		sd_buff_din <= nv_din[7:0];
-		sd_lba <= nv_lba;
+//		sd_buff_din[3] <= nv_din;
+//		sd_lba[3] <= nv_lba;
 		nv_buff_wr <= sd_buff_wr;
 		nv_buff_addr <= sd_buff_addr;
-		nv_ack <= sd_ack;						//Should update from single big to # of Devices when updating Framework
+		nv_ack <= sd_ack[3];						//Should update from single bit to # of Devices when updating Framework
 	end
    else begin
 		fd_dout <= sd_buff_dout;
-		sd_buff_din <= fd_din;
-		sd_lba <= fd_lba;
+
 		fd_buff_wr <= sd_buff_wr;
 		fd_buff_addr <= sd_buff_addr;
-		fd_ack <= sd_ack;						//Should update from single big to # of Devices when updating Framework
+		fd_ack[2:0] <= sd_ack[2:0];						//Should update from single bit to # of Devices when updating Framework
 	end
 end
 
@@ -791,8 +1117,8 @@ always @(posedge clk_sys) begin
 
 	reg img_mountedD;
 	
-	img_mountedD <= img_mounted[2];
-	if (~img_mountedD && img_mounted[2]) begin
+	img_mountedD <= img_mounted[3];
+	if (~img_mountedD && img_mounted[3]) begin
 		if(img_size == 4096) nv_file_valid <= 1;
 		else nv_file_valid <= 0;
 	end
@@ -801,7 +1127,7 @@ end
 
 reg nvram_en;				//Indicates we are either Reading or Writing NVRAM data to/from memory and file on sd card
 
-assign nvram_addr[24:0] = { 13'h1, nv_lba[2:0], nv_buff_addr[8:0]};			// 7000-7FFF (ram location: 1000-1fff)
+assign nvram_addr[24:0] = { 13'h1, sd_lba[3][3:0], nv_buff_addr[7:0]};			// 7000-7FFF (ram location: 1000-1fff)
 reg loading_nv;
 reg saving_nv;
 
@@ -827,37 +1153,37 @@ always @(posedge clk_sys) begin
 	if(~load_nvD && load_nv) begin
 		loading_nv <= 1;
 		nvram_en <= 1;
-		nv_lba <= 0;					//Start with first block of SD Buffer
+		sd_lba[3] <= 0;					//Start with first block of SD Buffer
 		pause <= 1;
 	end
 	if(~save_nvD && save_nv) begin
 		saving_nv <= 1;
 		nvram_en <= 1;
-		nv_lba <= 0;					//Start with first block of SD Buffer
+		sd_lba[3] <= 0;					//Start with first block of SD Buffer
 		pause <= 1;
 	end
 
 	nv_ackD <= nv_ack;
-	if (nv_ack) {sd_rd[2], sd_wr[2]} <= 0;
+	if (nv_ack) {sd_rd[3], sd_wr[3]} <= 0;
 
 	case (sd_state)
 	SD_IDLE:
 	begin
 		if (~load_nvD & load_nv) begin
-			sd_rd[2] <= 1;
+			sd_rd[3] <= 1;
 			sd_state <= SD_READ;
 		end
 		else if (~save_nvD & save_nv) begin
-			sd_wr[2] <= 1;
+			sd_wr[3] <= 1;
 			sd_state <= SD_WRITE;
 		end
 	end
 
 	SD_READ:
 	if (nv_ackD & ~nv_ack) begin
-		if(nv_lba <7) begin
-			nv_lba <= nv_lba + 1'd1;
-			sd_rd[2] <= 1;
+		if(sd_lba[3] <15) begin
+			sd_lba[3] <= sd_lba[3] + 1'd1;
+			sd_rd[3] <= 1;
 		end
 		else begin
 			sd_state <= SD_IDLE;
@@ -869,9 +1195,9 @@ always @(posedge clk_sys) begin
 
 	SD_WRITE:
 	if (nv_ackD & ~nv_ack) begin
-		if(nv_lba <7) begin
-			nv_lba <= nv_lba +1'd1;
-			sd_wr[2] <= 1;
+		if(sd_lba[3] <15) begin
+			sd_lba[3] <= sd_lba[3] +1'd1;
+			sd_wr[3] <= 1;
 		end
 		else begin
 			sd_state <= SD_IDLE;
@@ -886,8 +1212,34 @@ always @(posedge clk_sys) begin
 end
 
 
+///////////////////////////////////////////////// TiPi //////////////////////////////////////////////////////
+
+wire rpi_dout= USER_IN[1];				//D-
+wire rpi_rt  = USER_IN[2];				//SSTX-
+wire rpi_le  = USER_IN[3];				//GND_D
+wire rpi_cd  = USER_IN[5];				//SSRX-
+wire rpi_clk = USER_IN[6];				//SSTX+
+
+wire rpi_din, rpi_reset;
+
+assign USER_OUT[0] = rpi_reset;			//D+
+assign USER_OUT[4] = rpi_din;				//SSRX+
+
 
 /////////////////////////////////////////////////  Control  /////////////////////////////////////////////////
+// Mouse
+wire [4:0] mouseData;
+mecmouse mouse(
+	.clk(clk_sys),
+	.reset(reset),
+	.ps2_mouse(ps2_mouse),
+	.j1_s(~keyboardSignals_i[1]),
+	.j2_s(~keyboardSignals_i[0]),
+	.mode(mecmouse_en[1]),
+	.mecmouse_o(mouseData)
+);
+	
+// Keyboard
 
 wire       pressed = ps2_key[9];
 wire [8:0] code    = ps2_key[8:0];
@@ -1075,17 +1427,19 @@ reg btn_down  = 0;
 reg btn_left  = 0;
 reg btn_right = 0;
 reg btn_fire  = 0;
+//|0|0|0|U|D|R|L|B|
+//00 - off, 01, Mechatronics, 10 Joy1, 11 joy2
+wire m_right2  = mecmouse_en && mecmouse_en[0] == 1 ? ~mouseData[2] : joy_swap ? joy0[0] : joy1[0];
+wire m_left2   = mecmouse_en && mecmouse_en[0] == 1 ? ~mouseData[1] : joy_swap ? joy0[1] : joy1[1];
+wire m_down2   = mecmouse_en && mecmouse_en[0] == 1 ? ~mouseData[3] : joy_swap ? joy0[2] : joy1[2];
+wire m_up2     = mecmouse_en && mecmouse_en[0] == 1 ? ~mouseData[4] : joy_swap ? joy0[3] : joy1[3];
+wire m_fire2   = mecmouse_en && mecmouse_en[0] == 1 ? ~mouseData[0] : joy_swap ? joy0[4] | joy1[5] : joy1[4] | joy0[5]; // Fire 2 = fire button on second controller joy[5]
+wire m_right  = mecmouse_en && mecmouse_en < 3 ? ~mouseData[2] : btn_right | (joy_swap ? joy1[0] : joy0[0]);
+wire m_left   = mecmouse_en && mecmouse_en < 3 ? ~mouseData[1] : btn_left  | (joy_swap ? joy1[1] : joy0[1]);
+wire m_down   = mecmouse_en && mecmouse_en < 3 ? ~mouseData[3] : btn_down  | (joy_swap ? joy1[2] : joy0[2]);
+wire m_up     = mecmouse_en && mecmouse_en < 3 ? ~mouseData[4] : btn_up    | (joy_swap ? joy1[3] : joy0[3]);
+wire m_fire   = mecmouse_en && mecmouse_en < 3 ? ~mouseData[0] : btn_fire  | (joy_swap ? joy1[4] | joy0[5] : joy0[4] | joy1[5]);
 
-wire m_right2  = joy_swap ? joy0[0] : joy1[0];
-wire m_left2   = joy_swap ? joy0[1] : joy1[1];
-wire m_down2   = joy_swap ? joy0[2] : joy1[2];
-wire m_up2     = joy_swap ? joy0[3] : joy1[3];
-wire m_fire2   = joy_swap ? joy0[4] | joy1[5] : joy1[4] | joy0[5]; // Fire 2 = fire button on second controller joy[5]
-wire m_right  = btn_right | (joy_swap ? joy1[0] : joy0[0]);
-wire m_left   = btn_left  | (joy_swap ? joy1[1] : joy0[1]);
-wire m_down   = btn_down  | (joy_swap ? joy1[2] : joy0[2]);
-wire m_up     = btn_up    | (joy_swap ? joy1[3] : joy0[3]);
-wire m_fire   = btn_fire  | (joy_swap ? joy1[4] | joy0[5] : joy0[4] | joy1[5]);
 
 //Parsec uses keys 1,2,3: Make these joystick buttons for convenience
 //Also can be used to select menu on boot

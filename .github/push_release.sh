@@ -26,7 +26,7 @@ CORE_NAME=(Ti994a)
 MAIN_BRANCH="master"
 COMPILATION_INPUT=(Ti994a.qpf)
 COMPILATION_OUTPUT=(output_files/Ti994a.rbf)
-QUARTUS_IMAGE="theypsilon/quartus-lite-c5:17.1.docker0"
+QUARTUS_IMAGE="theypsilon/quartus-lite-c5:17.0.2.docker0"
 
 if [[ "${FORCED:-false}" != "true" ]] && \
    [[ "$(git log -n 1 --pretty=format:%an)" == "The CI/CD Bot" ]] && \

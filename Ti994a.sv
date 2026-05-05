@@ -180,6 +180,7 @@ module emu
 assign ADC_BUS = 'Z;
 
 // [MiSTer-DB9 BEGIN] - DB9/SNAC8 support: joydb wrapper
+// [MiSTer-DB9 RESERVED status bits: 63:62 59]
 wire         CLK_JOY = CLK_50M;                 // Assign clock between 40-50Mhz
 // joy_type forced Off when TIPI enabled (TIPI/RPi owns USER_IO).
 // Bits 60..61 already used by load_nv/save_nv → joy_2p moved to 59.

@@ -182,8 +182,9 @@ assign ADC_BUS = 'Z;
 // [MiSTer-DB9 BEGIN] - DB9/SNAC8 support: joydb wrapper
 wire         CLK_JOY = CLK_50M;                 // Assign clock between 40-50Mhz
 // joy_type forced Off when TIPI enabled (TIPI/RPi owns USER_IO).
-wire   [1:0] joy_type        = tipi_en ? 2'd0 : status[127:126]; // 0=Off, 1=Saturn, 2=DB9MD, 3=DB15
-wire         joy_2p          = status[125];
+// Bits 60..61 already used by load_nv/save_nv → joy_2p moved to 59.
+wire   [1:0] joy_type        = tipi_en ? 2'd0 : status[63:62];   // 0=Off, 1=Saturn, 2=DB9MD, 3=DB15
+wire         joy_2p          = status[59];
 wire         joy_db9md_en    = (joy_type == 2'd2);
 wire         joy_db15_en     = (joy_type == 2'd3);
 wire         joy_any_en      = |joy_type;
@@ -297,8 +298,8 @@ parameter CONF_STR = {
 	
 	"-;",
 	// [MiSTer-DB9-Pro BEGIN] - Saturn-aware UserIO selector
-	"O[127:126],UserIO Joystick,Off,Saturn,DB9MD,DB15;",
-	"O[125],UserIO Players, 1 Player,2 Players;",
+	"O[63:62],UserIO Joystick,Off,Saturn,DB9MD,DB15;",
+	"O[59],UserIO Players, 1 Player,2 Players;",
 	// [MiSTer-DB9-Pro END]
 	"-;",
 	"P3,Hardware;",
@@ -402,10 +403,8 @@ end
 
 /////////////////  HPS  ///////////////////////////
 
-// [MiSTer-DB9 BEGIN] - widened to 128 bits for joy_type at [127:126] and joy_2p at [125]
-wire [127:0] status;
-wire [127:0] status_o;		//So we can update OCD Settings on the fly
-// [MiSTer-DB9 END]
+wire [63:0] status;
+wire [63:0] status_o;		//So we can update OCD Settings on the fly
 wire			status_update;	//Trigger the status update
 wire [15:0] status_mask = {fdc_en, ~nv_file_valid, myarc80, (myarc_en || myarc80) && fdc_en, fdc_en && ~myarc_en && ~myarc80, scandoubler, cart_type !=5};
 wire  [1:0] buttons;

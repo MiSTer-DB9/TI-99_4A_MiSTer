@@ -51,10 +51,13 @@ module emu
 	output        VGA_F1,
 	output [1:0]  VGA_SL,
 	output        VGA_SCALER, // Force VGA scaler
+	output        VGA_DISABLE,
 
 	input  [11:0] HDMI_WIDTH,
 	input  [11:0] HDMI_HEIGHT,
 	output        HDMI_FREEZE,
+	output        HDMI_BLACKOUT,
+	output        HDMI_BOB_DEINT,
 
 `ifdef MISTER_FB
 	// Use framebuffer in DDRAM (USE_FB=1 in qsf)
@@ -225,6 +228,8 @@ assign {DDRAM_CLK, DDRAM_BURSTCNT, DDRAM_ADDR, DDRAM_DIN, DDRAM_BE, DDRAM_RD, DD
 //assign {SDRAM_CLK, SDRAM_CKE, SDRAM_A, SDRAM_BA, SDRAM_DQML, SDRAM_DQMH, SDRAM_nCS, SDRAM_nCAS, SDRAM_nWE} = 'z;
 assign VGA_SCALER = 0;
 assign HDMI_FREEZE = 0;
+assign HDMI_BLACKOUT = 0;
+assign HDMI_BOB_DEINT = 0;
 
 // number of blocks-1, total size ((sd_blk_cnt+1)*(1<<(BLKSZ+7))) must be <= 16384!
 // Not used at the moment so setting everything to 0.
@@ -232,6 +237,8 @@ assign sd_blk_cnt[0] = 6'd0;
 assign sd_blk_cnt[1] = 6'd0;
 assign sd_blk_cnt[2] = 6'd0;
 assign sd_blk_cnt[3] = 6'd0;
+
+assign VGA_DISABLE = 1'b0;
 
 
 assign LED_USER  = ioctl_download | drive_led | loading_nv;
@@ -627,7 +634,7 @@ always @(posedge clk_sys) begin
 						sdram_we = ioctl_wr;
 					end
 					else if(ioctl_addr >= 28'h10000 && ioctl_addr <=28'h15FFF && ~autoloaded_roms[0]) begin
-						download_addr = ioctl_addr + 23'h80000;
+						download_addr = ioctl_addr - 28'h10000 + 23'h80000;
 						sdram_we = ioctl_wr;
 					end
 					else if(ioctl_addr >= 28'h16000 && ioctl_addr <= 28'h1FFFF) begin

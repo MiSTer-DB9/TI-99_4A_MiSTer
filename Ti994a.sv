@@ -206,19 +206,22 @@ wire         joydb_1ena, joydb_2ena;
 wire  [15:0] joy_raw_payload;
 
 joydb joydb (
-  .clk             ( CLK_JOY         ),
-  .USER_IN         ( USER_IN         ),
-  .joy_type        ( joy_type        ),
-  .joy_2p          ( joy_2p          ),
-  .saturn_unlocked ( saturn_unlocked ),
-  .USER_OUT_DRIVE  ( USER_OUT_DRIVE  ),
-  .USER_PP_DRIVE   ( USER_PP_DRIVE   ),
-  .USER_OSD        ( USER_OSD        ),
-  .joydb_1         ( joydb_1         ),
-  .joydb_2         ( joydb_2         ),
-  .joydb_1ena      ( joydb_1ena      ),
-  .joydb_2ena      ( joydb_2ena      ),
-  .joy_raw         ( joy_raw_payload )
+  .clk                 ( CLK_JOY         ),
+  .USER_IN             ( USER_IN         ),
+  .OSD_STATUS          ( 1'b0            ),
+  .snac_active         ( 1'b0            ),
+  .mt32_primary_active ( 1'b0            ),
+  .joy_type            ( joy_type        ),
+  .joy_2p              ( joy_2p          ),
+  .saturn_unlocked     ( saturn_unlocked ),
+  .USER_OUT_DRIVE      ( USER_OUT_DRIVE  ),
+  .USER_PP_DRIVE       ( USER_PP_DRIVE   ),
+  .USER_OSD            ( USER_OSD        ),
+  .joydb_1             ( joydb_1         ),
+  .joydb_2             ( joydb_2         ),
+  .joydb_1ena          ( joydb_1ena      ),
+  .joydb_2ena          ( joydb_2ena      ),
+  .joy_raw             ( joy_raw_payload )
 );
 // [MiSTer-DB9 END]
 

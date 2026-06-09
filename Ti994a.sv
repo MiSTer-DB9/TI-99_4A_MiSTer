@@ -454,8 +454,8 @@ wire [31:0] sd_lba[4];
 wire	[5:0] sd_blk_cnt[4];
 
 // F2 F1 U D L R
-wire [31:0] joy0 = joydb_1ena ? (OSD_STATUS? 32'b000000 : joydb_1[5:0]) : joy0_USB;
-wire [31:0] joy1 = joydb_2ena ? (OSD_STATUS? 32'b000000 : joydb_2[5:0]) : joydb_1ena ? joy0_USB : joy1_USB;
+wire [31:0] joy0 = joydb_1ena ? (OSD_STATUS? 32'b000000 : joydb_1_mapped[5:0]) : joy0_USB;
+wire [31:0] joy1 = joydb_2ena ? (OSD_STATUS? 32'b000000 : joydb_2_mapped[5:0]) : joydb_1ena ? joy0_USB : joy1_USB;
 
 wire  [3:0] sd_rd;
 wire  [3:0] sd_wr;

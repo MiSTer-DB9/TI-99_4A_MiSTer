@@ -205,6 +205,13 @@ wire  [15:0] joydb_1, joydb_2;
 wire         joydb_1ena, joydb_2ena;
 wire  [15:0] joy_raw_payload;
 
+// [MiSTer-DB9 BEGIN] - DB9 programmable-remap matrix wires
+wire  [15:0] joydb_1_mapped, joydb_2_mapped;
+wire         db9_remap_cmd;
+wire   [5:0] db9_remap_byte_cnt;
+wire  [15:0] db9_remap_din;
+// [MiSTer-DB9 END]
+
 joydb joydb (
   .clk                 ( CLK_JOY         ),
   .USER_IN             ( USER_IN         ),
@@ -221,6 +228,14 @@ joydb joydb (
   .joydb_2             ( joydb_2         ),
   .joydb_1ena          ( joydb_1ena      ),
   .joydb_2ena          ( joydb_2ena      ),
+  // [MiSTer-DB9 BEGIN] - DB9 programmable-remap matrix
+  .clk_sys             ( clk_sys            ),
+  .remap_cmd           ( db9_remap_cmd      ),
+  .remap_byte_cnt      ( db9_remap_byte_cnt ),
+  .remap_din           ( db9_remap_din      ),
+  .joydb_1_mapped      ( joydb_1_mapped     ),
+  .joydb_2_mapped      ( joydb_2_mapped     ),
+  // [MiSTer-DB9 END]
   .joy_raw             ( joy_raw_payload )
 );
 // [MiSTer-DB9 END]
@@ -439,8 +454,8 @@ wire [31:0] sd_lba[4];
 wire	[5:0] sd_blk_cnt[4];
 
 // F2 F1 U D L R
-wire [31:0] joy0 = joydb_1ena ? (OSD_STATUS? 32'b000000 : joydb_1[5:0]) : joy0_USB;
-wire [31:0] joy1 = joydb_2ena ? (OSD_STATUS? 32'b000000 : joydb_2[5:0]) : joydb_1ena ? joy0_USB : joy1_USB;
+wire [31:0] joy0 = joydb_1ena ? (OSD_STATUS? 32'b000000 : joydb_1_mapped[5:0]) : joy0_USB;
+wire [31:0] joy1 = joydb_2ena ? (OSD_STATUS? 32'b000000 : joydb_2_mapped[5:0]) : joydb_1ena ? joy0_USB : joy1_USB;
 
 wire  [3:0] sd_rd;
 wire  [3:0] sd_wr;
@@ -490,6 +505,10 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(4), .BLKSZ(1)) hps_io
 	
 	// [MiSTer-DB9 BEGIN] - DB9/SNAC8 support: joy_raw via wrapper payload
 	.joy_raw(OSD_STATUS ? joy_raw_payload : 16'b0),
+	// programmable remap matrix selector load (UIO_DB9_MAP 0xFD)
+	.db9_remap_cmd(db9_remap_cmd),
+	.db9_remap_byte_cnt(db9_remap_byte_cnt),
+	.db9_remap_din(db9_remap_din),
 	// [MiSTer-DB9 END]
 	// [MiSTer-DB9-Pro BEGIN] - Saturn key gate
 	.saturn_unlocked(saturn_unlocked),
